@@ -5,6 +5,8 @@ import Register from "../pages/Register";
 import Login from "../pages/Login";
 import FormList from "../pages/admin/FormList";
 import FormBuilder from "../pages/admin/FormBuilder";
+import { PublicFormPage } from "../pages/PublicFormPage";
+import { ThankYouPage } from "../pages/ThankYouPage";
 
 export const appRoutes: RouteObject[] = [
   {
@@ -28,6 +30,14 @@ export const appRoutes: RouteObject[] = [
       <ProtectedRoute>
         <FormBuilder />
       </ProtectedRoute>)
+  },
+  {
+    path:"/form/:formId",
+     element: (<PublicFormPage />)
+  },
+  {
+    path:"/thank-you",
+     element:(<ThankYouPage />)
   },
   {
     path: "/admin/dashboard",
