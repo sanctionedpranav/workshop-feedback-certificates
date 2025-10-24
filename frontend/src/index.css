@@ -1,1 +1,6 @@
 @import "tailwindcss";
+
+/* body {
+  @apply bg-gradient-to-br from-blue-900 via-blue-700 to-indigo-900 min-h-screen flex items-center justify-center text-white;
+  font-family: "Inter", sans-serif;
+} */

@@ -1,0 +1,31 @@
+{
+  "admins": {
+    "adminId": {
+      "email": "admin@college.com",
+      "role": "admin"
+    }
+  },
+  "forms": {
+    "formId": {
+      "collegeName": "XYZ College",
+      "workshopName": "React Basics Workshop",
+      "dateTime": "2025-10-26T10:00:00Z",
+      "instructions": "Please bring your laptop.",
+      "status": true,
+      "formLink": "https://myapp.com/form/xyz123",
+      "createdAt": "2025-10-24T09:00:00Z",
+      "createdBy": "admin@college.com"
+    }
+  },
+  "responses": {
+    "formId": {
+      "responseId": {
+        "studentName": "John Doe",
+        "email": "john@example.com",
+        "phone": "+919876543210",
+        "feedback": "Great session!",
+        "submittedAt": "2025-10-24T10:15:00Z"
+      }
+    }
+  }
+}
