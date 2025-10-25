@@ -7,7 +7,7 @@ interface SidebarProps {
 const menuConfig: Record<string, { name: string; path: string }[]> = {
   admin: [
     { name: 'Dashboard', path: '/admin/dashboard' },
-    { name: 'All Forms', path: '/admin/forms/create' },
+    // { name: 'All Forms', path: '/admin/forms/create' },
     { name: 'Create Forms', path: '/admin/forms' },
 
   ],
