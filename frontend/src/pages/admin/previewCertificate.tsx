@@ -4,7 +4,6 @@ import AdminSidebar from "../../components/admin/Sidebar";
 import AdminTopbar from "../../components/admin/Topbar";
 import DashboardViewport from "../../components/admin";
 import AdminFooter from "../../components/admin/Footer";
-import { Worker, Viewer } from '@react-pdf-viewer/core';
 import '@react-pdf-viewer/core/lib/styles/index.css';
 import '@react-pdf-viewer/default-layout/lib/styles/index.css';
 
@@ -38,15 +37,10 @@ export default function PreviewCertificate() {
               </button>
 
               {pdfUrl && (
-                <Worker workerUrl="https://unpkg.com/pdfjs-dist@3.5.141/build/pdf.worker.min.js">
-                  <div style={{ height: '600px' }}>
-                    <Viewer fileUrl="https://res.cloudinary.com/dog1qdvnk/image/upload/v1761330046/Pranav_Sharma_Frontend_lwzoqh.pdf" />
-                  </div>
-                </Worker>
-                // <iframe
-                //   src={pdfUrl}
-                //   className="mt-6 w-full h-[600px] border rounded"
-                // ></iframe>
+                <iframe
+                  src={pdfUrl}
+                  className="mt-6 w-full h-[600px] border rounded"
+                ></iframe>
               )}
             </div>
           </DashboardViewport>

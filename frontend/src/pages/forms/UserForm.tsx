@@ -1,10 +1,12 @@
+// src/pages/admin/UserForm.tsx
 import React, { useState } from "react";
 import AdminSidebar from "../../components/admin/Sidebar";
 import AdminTopbar from "../../components/admin/Topbar";
 import DashboardViewport from "../../components/admin";
 import AdminFooter from "../../components/admin/Footer";
 import { collection, addDoc } from "firebase/firestore";
-import { db } from "../../api/firebase";
+import { db, auth, RecaptchaVerifier, signInWithPhoneNumber } from "../../api/firebase";
+import { sendEmailOtp } from "../../utils/emailService";
 import { useNavigate } from "react-router-dom";
 
 interface UserFormProps {
@@ -18,57 +20,83 @@ interface UserFormProps {
 }
 
 const UserForm: React.FC<UserFormProps> = ({ formId, formData }) => {
+  const navigate = useNavigate();
+
+  // Basic input states
   const [name, setName] = useState("");
   const [course, setCourse] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [feedback, setFeedback] = useState("");
 
+  // OTP states
   const [phoneOtp, setPhoneOtp] = useState("");
   const [emailOtp, setEmailOtp] = useState("");
-  const [generatedPhoneOtp, setGeneratedPhoneOtp] = useState("");
-  const [generatedEmailOtp, setGeneratedEmailOtp] = useState("");
+  const [emailOtpGenerated, setEmailOtpGenerated] = useState("");
   const [phoneVerified, setPhoneVerified] = useState(false);
   const [emailVerified, setEmailVerified] = useState(false);
+  const [confirmationResult, setConfirmationResult] = useState<any>(null);
 
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
 
-  const navigate = useNavigate();
-
-  // --- Mock OTP send functions (to be replaced with Firebase Cloud Functions) ---
-  const sendPhoneOtp = () => {
-    if (!phone) return alert("Enter phone number first");
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    setGeneratedPhoneOtp(otp);
-    alert(`OTP sent to phone (mock): ${otp}`);
+  // ✅ STEP 1 — Setup Recaptcha once
+  const setupRecaptcha = () => {
+    if (!window.recaptchaVerifier) {
+      window.recaptchaVerifier = new RecaptchaVerifier(auth, "recaptcha-container", {
+        size: "invisible",
+      });
+    }
   };
 
-  const sendEmailOtp = () => {
-    if (!email) return alert("Enter email first");
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    setGeneratedEmailOtp(otp);
-    alert(`OTP sent to email (mock): ${otp}`);
+  // ✅ STEP 2 — Send OTP to phone
+  const sendPhoneOtp = async () => {
+    if (!phone) return alert("Enter phone number first!");
+    setupRecaptcha();
+
+    try {
+      const appVerifier = window.recaptchaVerifier;
+      const confirmation = await signInWithPhoneNumber(auth, "+91" + phone, appVerifier);
+      setConfirmationResult(confirmation);
+      alert("OTP sent to your phone!");
+    } catch (error) {
+      console.error("Phone OTP Error:", error);
+      alert("Failed to send OTP. Try again.");
+    }
   };
 
-  const verifyPhoneOtp = () => {
-    if (phoneOtp === generatedPhoneOtp) {
+  // ✅ STEP 3 — Verify phone OTP
+  const verifyPhoneOtp = async () => {
+    if (!phoneOtp || !confirmationResult) return alert("Enter OTP first!");
+    try {
+      await confirmationResult.confirm(phoneOtp);
       setPhoneVerified(true);
-      alert("Phone verified successfully!");
-    } else {
+      alert("✅ Phone verified successfully!");
+    } catch (error) {
+      console.error(error);
       alert("Invalid phone OTP!");
     }
   };
 
+  // ✅ STEP 4 — Send OTP to email
+  const sendEmailOtpHandler = async () => {
+    if (!email) return alert("Enter email first!");
+    const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    setEmailOtpGenerated(generatedOtp);
+    await sendEmailOtp(email, generatedOtp);
+    alert("OTP sent to your email!");
+  };
+
+  // ✅ STEP 5 — Verify email OTP
   const verifyEmailOtp = () => {
-    if (emailOtp === generatedEmailOtp) {
+    if (emailOtp === emailOtpGenerated) {
       setEmailVerified(true);
-      alert("Email verified successfully!");
+      alert("✅ Email verified successfully!");
     } else {
-      alert("Invalid email OTP!");
+      alert("Invalid Email OTP!");
     }
   };
 
+  // ✅ STEP 6 — Submit final form
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -78,9 +106,6 @@ const UserForm: React.FC<UserFormProps> = ({ formId, formData }) => {
     }
 
     setLoading(true);
-    setMessage("");
-
-    // Mock save to Firestore (to be implemented in Day 5)
     try {
       await addDoc(collection(db, "submissions"), {
         formId,
@@ -91,11 +116,11 @@ const UserForm: React.FC<UserFormProps> = ({ formId, formData }) => {
         feedback,
         timestamp: new Date().toISOString(),
       });
-      alert("Form submitted successfully ✅");
+      alert("✅ Form submitted successfully!");
       navigate("/thank-you");
     } catch (err) {
       console.error(err);
-      alert("Submission failed ❌");
+      alert("Submission failed!");
     } finally {
       setLoading(false);
     }
@@ -114,97 +139,67 @@ const UserForm: React.FC<UserFormProps> = ({ formId, formData }) => {
               </h2>
 
               <form onSubmit={handleSubmit} className="space-y-4">
-                {/* Read-only Workshop Info */}
+                {/* Read-only Info */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700">Workshop Name</label>
-                    <input
-                      value={formData.workshopName}
-                      readOnly
-                      className="w-full p-2 border rounded bg-gray-100 cursor-not-allowed"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700">College Name</label>
-                    <input
-                      value={formData.collegeName}
-                      readOnly
-                      className="w-full p-2 border rounded bg-gray-100 cursor-not-allowed"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700">Date</label>
-                    <input
-                      value={formData.date}
-                      readOnly
-                      className="w-full p-2 border rounded bg-gray-100 cursor-not-allowed"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700">Instructions</label>
-                    <input
-                      value={formData.instructions}
-                      readOnly
-                      className="w-full p-2 border rounded bg-gray-100 cursor-not-allowed"
-                    />
-                  </div>
+                  {Object.entries(formData).map(([key, value]) => (
+                    <div key={key}>
+                      <label className="block text-sm font-semibold text-gray-700 capitalize">
+                        {key.replace(/([A-Z])/g, " $1")}
+                      </label>
+                      <input
+                        value={value}
+                        readOnly
+                        className="w-full p-2 border rounded bg-gray-100 cursor-not-allowed"
+                      />
+                    </div>
+                  ))}
                 </div>
 
                 <hr className="my-6" />
 
-                {/* Student Inputs */}
+                {/* Name & Course */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700">Full Name</label>
-                    <input
-                      required
-                      type="text"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-400"
-                      placeholder="Enter your name"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700">Course</label>
-                    <input
-                      required
-                      type="text"
-                      value={course}
-                      onChange={(e) => setCourse(e.target.value)}
-                      className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-400"
-                      placeholder="Enter your course"
-                    />
-                  </div>
+                  <input
+                    required
+                    placeholder="Full Name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-400"
+                  />
+                  <input
+                    required
+                    placeholder="Course"
+                    value={course}
+                    onChange={(e) => setCourse(e.target.value)}
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-400"
+                  />
                 </div>
 
-                {/* Phone + OTP */}
+                {/* Phone OTP */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700">Phone Number</label>
-                  <div className="flex  space-x-2">
+                  <label className="block text-sm font-semibold text-gray-700">Phone</label>
+                  <div className="flex space-x-2">
                     <input
                       required
                       type="tel"
+                      placeholder="Enter phone number"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
-                      className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-400"
-                      placeholder="Enter phone number"
+                      className="w-full p-2 border rounded"
                     />
                     {!phoneVerified && (
                       <button
                         type="button"
                         onClick={sendPhoneOtp}
-                        className="bg-blue-500 text-white px-3 rounded hover:bg-blue-600"
+                        className="bg-blue-500 text-white px-3 rounded"
                       >
                         Send OTP
                       </button>
                     )}
                   </div>
-
-                  {!phoneVerified && generatedPhoneOtp && (
+                  {!phoneVerified && confirmationResult && (
                     <div className="flex mt-2 space-x-2">
                       <input
-                        type="text"
                         placeholder="Enter OTP"
                         value={phoneOtp}
                         onChange={(e) => setPhoneOtp(e.target.value)}
@@ -213,48 +208,43 @@ const UserForm: React.FC<UserFormProps> = ({ formId, formData }) => {
                       <button
                         type="button"
                         onClick={verifyPhoneOtp}
-                        className="bg-green-500 text-white px-3 rounded hover:bg-green-600"
+                        className="bg-green-500 text-white px-3 rounded"
                       >
                         Verify
                       </button>
                     </div>
                   )}
-
                   {phoneVerified && (
-                    <p className="text-green-600 text-sm mt-1 font-semibold">
-                      ✅ Phone Verified
-                    </p>
+                    <p className="text-green-600 text-sm mt-1 font-semibold">✅ Phone Verified</p>
                   )}
                 </div>
 
-                {/* Email + OTP */}
+                {/* Email OTP */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700">Email Address</label>
+                  <label className="block text-sm font-semibold text-gray-700">Email</label>
                   <div className="flex space-x-2">
                     <input
                       required
                       type="email"
+                      placeholder="Enter email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-400"
-                      placeholder="Enter email address"
+                      className="w-full p-2 border rounded"
                     />
                     {!emailVerified && (
                       <button
                         type="button"
-                        onClick={sendEmailOtp}
-                        className="bg-blue-500 text-white px-3 rounded hover:bg-blue-600"
+                        onClick={sendEmailOtpHandler}
+                        className="bg-blue-500 text-white px-3 rounded"
                       >
                         Send OTP
                       </button>
                     )}
                   </div>
-
-                  {!emailVerified && generatedEmailOtp && (
+                  {!emailVerified && emailOtpGenerated && (
                     <div className="flex mt-2 space-x-2">
                       <input
-                        type="text"
-                        placeholder="Enter OTP"
+                        placeholder="Enter Email OTP"
                         value={emailOtp}
                         onChange={(e) => setEmailOtp(e.target.value)}
                         className="w-full p-2 border rounded"
@@ -262,53 +252,48 @@ const UserForm: React.FC<UserFormProps> = ({ formId, formData }) => {
                       <button
                         type="button"
                         onClick={verifyEmailOtp}
-                        className="bg-green-500 text-white px-3 rounded hover:bg-green-600"
+                        className="bg-green-500 text-white px-3 rounded"
                       >
                         Verify
                       </button>
                     </div>
                   )}
-
                   {emailVerified && (
-                    <p className="text-green-600 text-sm mt-1 font-semibold">
-                      ✅ Email Verified
-                    </p>
+                    <p className="text-green-600 text-sm mt-1 font-semibold">✅ Email Verified</p>
                   )}
                 </div>
 
                 {/* Feedback */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700">Feedback</label>
-                  <textarea
-                    required
-                    value={feedback}
-                    onChange={(e) => setFeedback(e.target.value)}
-                    className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-400"
-                    rows={4}
-                    placeholder="Your feedback..."
-                  />
-                </div>
+                <textarea
+                  required
+                  value={feedback}
+                  onChange={(e) => setFeedback(e.target.value)}
+                  placeholder="Your feedback..."
+                  className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-400"
+                  rows={4}
+                />
 
-                {/* Submit */}
                 <button
                   disabled={!phoneVerified || !emailVerified || loading}
                   type="submit"
-                  className={`w-full py-3 rounded text-white font-semibold transition ${phoneVerified && emailVerified
-                    ? "bg-purple-600 hover:bg-purple-700"
-                    : "bg-gray-400 cursor-not-allowed"
-                    }`}
+                  className={`w-full py-3 rounded text-white font-semibold transition ${
+                    phoneVerified && emailVerified
+                      ? "bg-purple-600 hover:bg-purple-700"
+                      : "bg-gray-400 cursor-not-allowed"
+                  }`}
                 >
                   {loading ? "Submitting..." : "Submit Feedback"}
                 </button>
-
-                {message && <p className="text-center text-green-600 mt-3">{message}</p>}
               </form>
+
+              {/* Firebase Recaptcha */}
+              <div id="recaptcha-container"></div>
             </div>
           </DashboardViewport>
-        </main >
+        </main>
         <AdminFooter />
-      </div >
-    </div >
+      </div>
+    </div>
   );
 };
 
